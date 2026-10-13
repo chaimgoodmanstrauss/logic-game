@@ -1,0 +1,1 @@
+Photos fetched from the lead images of the matching English Wikipedia articles (Wikimedia Commons). Licenses vary (mostly CC BY / CC BY-SA / public domain); check each file page before redistributing.

@@ -9,15 +9,16 @@
 <body>
 <header>
   <h1>Animal Logic</h1>
-  <div id="scorebar">
-    <span>Templates used: <b id="score">0</b></span>
-    <span>Par: <b id="par">…</b></span>
-    <button id="newdeal">New deal</button>
-  </div>
+  <div id="scorebadge"><span class="lbl">Score</span><b id="total">0</b></div>
 </header>
+<div id="scorebar">
+  <span>Templates used: <b id="score">0</b></span>
+  <span>Par: <b id="par">…</b></span>
+  <label id="difflabel">Difficulty <select id="difficulty"><option value="mix">Mix</option><option>1</option><option selected>2</option><option>3</option><option>4</option></select></label>
+</div>
 
 <section>
-  <h2>Your hand <small id="swaphint">— you may swap one card</small></h2>
+  <h2>Your hand <small id="swaphint">— drag a card from the pool onto one of these to swap (once per deal)</small></h2>
   <div id="hand" class="cards big"></div>
 </section>
 
@@ -26,8 +27,12 @@
   <div id="sentence"><span class="lead">These animals are</span><div id="workspace"></div><span class="lead">.</span></div>
   <div id="status"></div>
   <div id="toolbar">
-    <div id="trash" title="Drop here to delete">🗑 drop to delete</div>
+    <button id="submit" class="primary">Submit answer</button>
+    <button id="undo" title="Undo (Ctrl/Cmd+Z)">↶ Undo</button>
+    <button id="redo" title="Redo (Ctrl/Cmd+Shift+Z)">↷ Redo</button>
     <button id="clear">Clear</button>
+    <button id="showanswer">Show answer</button>
+    <button id="newdeal" class="primary">New deal</button>
   </div>
 </section>
 
@@ -40,6 +45,15 @@
   <h2>The rest of the pool</h2>
   <div id="pool" class="cards small"></div>
 </section>
+
+<div id="answer" hidden>
+  <div class="panel">
+    <h2>Answer</h2>
+    <p id="answer-text"></p>
+    <p id="answer-count" class="muted"></p>
+    <div class="row"><button id="answer-new">New deal</button><button id="answer-close">Close</button></div>
+  </div>
+</div>
 
 <script src="animals.js"></script>
 <script src="logic.js"></script>

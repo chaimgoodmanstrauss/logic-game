@@ -43,23 +43,31 @@
     return top ? s : `(${s})`;
   }
 
+  function rebuild(vec, prov, keys) {
+    const p = prov.get(vec);
+    if (p[0] === 'atom') return { type: 'atom', key: keys[p[1]] };
+    return { type: 'op', op: p[0], args: p.slice(1).map(v => rebuild(v, prov, keys)) };
+  }
+
   // Minimum number of templates that yields exactly `target` (bitmask over animals).
   // Generator: yields while working so the UI can stay responsive; returns the cost or {atLeast:k} if the budget ran out.
-  function* solvePar(atomMasks, target, full, budgetMs = 4000) {
+  function* solvePar(atomMasks, target, full, budgetMs = 4000, keys = null, out = null) {
     const seen = new Set();
+    const prov = new Map(); // vector -> how it was first built (cheapest)
+    const finish = k => { if (out && keys) out.expr = rebuild(target, prov, keys); return k; };
     const levels = [];
     const start = Date.now();
     let lastYield = start;
 
     const L0 = [];
-    for (const m of atomMasks) if (!seen.has(m)) { seen.add(m); L0.push(m); }
+    atomMasks.forEach((m, i) => { if (!seen.has(m)) { seen.add(m); L0.push(m); prov.set(m, ['atom', i]); } });
     levels.push(L0);
-    if (seen.has(target)) return 0;
+    if (seen.has(target)) return finish(0);
 
     for (let k = 1; ; k++) {
       const next = [];
-      const add = v => { if (!seen.has(v)) { seen.add(v); next.push(v); return v === target; } return false; };
-      for (const a of levels[k - 1]) if (add(~a & full)) return k;
+      const add = (v, p) => { if (!seen.has(v)) { seen.add(v); next.push(v); prov.set(v, p); return v === target; } return false; };
+      for (const a of levels[k - 1]) if (add(~a & full, ['not', a])) return finish(k);
       for (let i = 0; i <= k - 1; i++) {
         const j = k - 1 - i;
         const A = levels[i], B = levels[j];
@@ -67,8 +75,8 @@
           const a = A[x];
           for (let y = 0; y < B.length; y++) {
             const b = B[y];
-            if (i <= j) { if (add(a & b)) return k; if (add(a | b)) return k; }
-            if (add((~a | b) & full)) return k;
+            if (i <= j) { if (add(a & b, ['and', a, b])) return finish(k); if (add(a | b, ['or', a, b])) return finish(k); }
+            if (add((~a | b) & full, ['if', a, b])) return finish(k);
           }
           const now = Date.now();
           if (now - lastYield > 15) {
@@ -82,13 +90,21 @@
     }
   }
 
-  // Random complete expression with exactly n templates over the given atom keys.
-  function randomExpr(n, keys) {
-    if (n === 0) return { type: 'atom', key: keys[Math.floor(Math.random() * keys.length)] };
-    const op = ['and', 'or', 'if', 'not'][Math.floor(Math.random() * 4)];
-    if (op === 'not') return { type: 'op', op, args: [randomExpr(n - 1, keys)] };
-    const left = Math.floor(Math.random() * n);
-    return { type: 'op', op, args: [randomExpr(left, keys), randomExpr(n - 1 - left, keys)] };
+  // Random complete expression using exactly k distinct atoms (k-1 binary templates, plus an optional NOT).
+  function randomExpr(k, keys) {
+    const pool = keys.slice();
+    for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+    const build = n => {
+      let node;
+      if (n === 1) node = { type: 'atom', key: pool.pop() };
+      else {
+        const left = 1 + Math.floor(Math.random() * (n - 1));
+        const op = ['and', 'or', 'if'][Math.floor(Math.random() * 3)];
+        node = { type: 'op', op, args: [build(left), build(n - left)] };
+      }
+      return Math.random() < 0.2 ? { type: 'op', op: 'not', args: [node] } : node;
+    };
+    return build(k);
   }
 
   const api = { randomExpr, evalNode, countTemplates, isComplete, toText, solvePar };

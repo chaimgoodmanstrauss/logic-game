@@ -1,7 +1,7 @@
 (() => {
   const { evalNode, countTemplates, isComplete, toText, solvePar, randomExpr } = Logic;
   const $ = id => document.getElementById(id);
-  const HAND_MIN = 4, HAND_MAX = 6;
+  const HAND_SIZE = 5;
 
   const atomTests = Object.fromEntries(ATOMS.map(a => [a.key, a.test]));
   const atomByKey = Object.fromEntries(ATOMS.map(a => [a.key, a]));
@@ -11,7 +11,11 @@
 
   let hand = [];          // animal indices
   let swapped = false;
+  let hiddenExpr = null;  // the generating expression (guarantees a solution until a swap)
+  let totalBase = 0, dealBest = 0;
   let tree = null;        // root expression
+  let submitted = false;
+  let undoStack = [], redoStack = [];
   let drag = null;        // {new:{kind,key|op}} or {path}
   let parToken = 0;
   const cardEls = [];
@@ -24,36 +28,64 @@
     return root;
   }
   const isPrefix = (p, q) => p.length <= q.length && p.every((v, i) => q[i] === v);
+  function commit(next) {
+    undoStack.push(tree); redoStack = [];
+    tree = next; submitted = false; renderAll();
+  }
+  function undo() { if (!undoStack.length) return; redoStack.push(tree); tree = undoStack.pop(); submitted = false; renderAll(); }
+  function redo() { if (!redoStack.length) return; undoStack.push(tree); tree = redoStack.pop(); submitted = false; renderAll(); }
   const clone = x => (x ? JSON.parse(JSON.stringify(x)) : x);
 
   // ---------- dealing ----------
   const maskOf = idxs => idxs.reduce((m, i) => m | (1 << i), 0);
   const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 
-  // Deal a hand that is describable by a small hidden expression, so par stays reasonable.
-  function dealHand() {
+  // Hands already played (per atom count), remembered across reloads so deals don't repeat until the pool is exhausted.
+  const SEEN_KEY = 'animal-logic-seen';
+  function loadSeen() { try { return JSON.parse(localStorage.getItem(SEEN_KEY)) || {}; } catch { return {}; } }
+  function saveSeen(s) { try { localStorage.setItem(SEEN_KEY, JSON.stringify(s)); } catch {} }
+
+  // Work backwards: generate a random expression with `difficulty` atoms until it is true of exactly 5 animals.
+  function dealHand(difficulty) {
     const keys = ATOMS.map(a => a.key);
-    for (let tries = 0; tries < 2000; tries++) {
-      const e = randomExpr(2 + Math.floor(Math.random() * 2), keys);
-      const set_ = ANIMALS.map((a, i) => i).filter(i => evalNode(e, ANIMALS[i], atomTests) === true);
-      if (set_.length >= HAND_MIN && set_.length <= HAND_MAX) return set_;
+    const seen = loadSeen();
+    for (let pass = 0; pass < 2; pass++) {
+      const used = new Set(seen[difficulty] || []);
+      for (let tries = 0; tries < 20000; tries++) {
+        const e = randomExpr(difficulty, keys);
+        const matches = ANIMALS.map((_, i) => i).filter(i => evalNode(e, ANIMALS[i], atomTests) === true);
+        if (matches.length !== HAND_SIZE) continue;
+        const m = maskOf(matches);
+        if (used.has(m) || (hand.length && m === maskOf(hand))) continue;
+        seen[difficulty] = [...used, m];
+        saveSeen(seen);
+        return { cards: shuffle(matches), expr: e };
+      }
+      seen[difficulty] = []; // every hand at this level has been played: start over
     }
-    return shuffle(ANIMALS.map((_, i) => i)).slice(0, 5);
+    return null;
   }
 
   function newDeal() {
-    hand = dealHand();
+    totalBase += dealBest; dealBest = 0;
+    const level = $('difficulty').value;
+    const deal = dealHand(level === 'mix' ? 1 + Math.floor(Math.random() * 4) : +level);
+    if (!deal) return;
+    hand = deal.cards;
+    hiddenExpr = deal.expr;
+    par = countTemplates(deal.expr); solved = {};
     swapped = false;
-    tree = null;
+    tree = null; undoStack = []; redoStack = []; submitted = false;
     buildCards();
     renderAll();
     computePar();
   }
 
-  function swapCard(handPos) {
-    if (swapped) return;
-    const others = ANIMALS.map((_, i) => i).filter(i => !hand.includes(i));
-    hand[handPos] = others[Math.floor(Math.random() * others.length)];
+  const canSwapIn = () => !swapped && drag && drag.swapIn !== undefined;
+
+  function swapCard(handPos, newIdx) {
+    hiddenExpr = null; par = null; solved = {};
+    hand[handPos] = newIdx; submitted = false;
     swapped = true;
     buildCards();
     renderAll();
@@ -61,21 +93,34 @@
   }
 
   // ---------- par ----------
+  function showPar() {
+    $('par').textContent = par === null ? '…' : parIsLowerBound ? `${par}+` : par;
+  }
+  let par = null, parIsLowerBound = false;
+  let solved = {};
+
+  // The hidden expression gives an upper bound on par; the solver can only lower it. After a swap the solver is the only source.
   function computePar() {
     const token = ++parToken;
-    $('par').textContent = '…';
-    const gen = solvePar(atomMasks, maskOf(hand), FULL);
+    parIsLowerBound = false;
+    showPar();
+    const gen = solvePar(atomMasks, maskOf(hand), FULL, 4000, ATOMS.map(a => a.key), solved = {});
     (function step() {
       if (token !== parToken) return;
       const r = gen.next();
       if (!r.done) return void setTimeout(step, 0);
       const v = r.value;
-      $('par').textContent = typeof v === 'number' ? v : `${v.atLeast}+`;
-      par = v;
+      if (typeof v === 'number') { par = par === null ? v : Math.min(par, v); }
+      else if (par === null) { par = v.atLeast; parIsLowerBound = true; }
+      showPar();
       updateStatus();
     })();
   }
-  let par = null;
+
+  function pointsFor(n) {
+    if (n <= par) return 100 + 50 * (par - n);
+    return Math.max(10, 100 - 25 * (n - par));
+  }
 
   // ---------- cards ----------
   function tagsOf(a) {
@@ -88,15 +133,19 @@
     const a = ANIMALS[idx];
     const el = document.createElement('div');
     el.className = 'card' + (inHand ? ' hand' : '');
-    el.innerHTML = `<div class="pic"><img alt="" src="images/${a.id}.png"><span class="emoji" hidden>${a.emoji}</span></div>
+    el.innerHTML = `<div class="pic"><img alt="" src="images/${a.id}.jpg"><span class="emoji" hidden>${a.emoji}</span></div>
       <div class="nm">${a.name}</div><div class="tags">${tagsOf(a)}</div><div class="mark"></div>`;
     const img = el.querySelector('img'), em = el.querySelector('.emoji');
     img.onerror = () => { img.remove(); em.hidden = false; };
     if (inHand) {
-      const b = document.createElement('button');
-      b.className = 'swap'; b.textContent = 'Swap';
-      b.onclick = () => swapCard(handPos);
-      el.appendChild(b);
+      el.addEventListener('dragover', e => { if (canSwapIn()) { e.preventDefault(); el.classList.add('over'); } });
+      el.addEventListener('dragleave', () => el.classList.remove('over'));
+      el.addEventListener('drop', e => { e.preventDefault(); clearOver(); if (canSwapIn()) swapCard(handPos, drag.swapIn); drag = null; });
+    } else if (!swapped) {
+      el.draggable = true;
+      el.classList.add('swappable');
+      el.addEventListener('dragstart', e => { drag = { swapIn: idx }; e.dataTransfer.setData('text/plain', 'card'); e.dataTransfer.effectAllowed = 'move'; });
+      el.addEventListener('dragend', () => { drag = null; clearOver(); });
     }
     cardEls[idx] = el;
     return el;
@@ -141,7 +190,7 @@
       el.addEventListener('dragend', () => { drag = null; clearOver(); });
       const del = document.createElement('button');
       del.className = 'del'; del.textContent = '×'; del.title = 'Remove';
-      del.onclick = e => { e.stopPropagation(); tree = set(clone(tree), path, null); renderAll(); };
+      del.onclick = e => { e.stopPropagation(); commit(set(clone(tree), path, null)); };
       el.append(del);
       wireDrop(el, path);
     }
@@ -152,9 +201,9 @@
   function clearOver() { document.querySelectorAll('.over').forEach(e => e.classList.remove('over')); }
 
   function wireDrop(el, path) {
-    el.addEventListener('dragover', e => { if (!drag) return; e.preventDefault(); e.stopPropagation(); clearOver(); el.classList.add('over'); });
+    el.addEventListener('dragover', e => { if (!drag || drag.swapIn !== undefined) return; e.preventDefault(); e.stopPropagation(); clearOver(); el.classList.add('over'); });
     el.addEventListener('dragleave', () => el.classList.remove('over'));
-    el.addEventListener('drop', e => { e.preventDefault(); e.stopPropagation(); clearOver(); if (drag) dropOn(path); drag = null; });
+    el.addEventListener('drop', e => { e.preventDefault(); e.stopPropagation(); clearOver(); if (drag && drag.swapIn === undefined) dropOn(path); drag = null; });
   }
 
   // Place the dragged item at `path`. Blank → fill it. Filled + template → wrap (existing goes into the template's first blank). Filled + atom → replace.
@@ -179,8 +228,7 @@
         item.args[blank] = target;
       }
     }
-    tree = set(t, path, item);
-    renderAll();
+    commit(set(t, path, item));
   }
 
   function buildPalette() {
@@ -217,8 +265,8 @@
       el.classList.toggle('maybe', v === undefined && !!tree);
       const inHand = handSet.has(i);
       const wrong = v !== undefined && v !== inHand;
-      el.classList.toggle('wrong', wrong);
-      el.classList.toggle('right', v !== undefined && v === inHand && isComplete(tree));
+      el.classList.toggle('wrong', submitted && wrong);
+      el.classList.toggle('right', submitted && v !== undefined && v === inHand);
       el.querySelector('.mark').textContent = wrong ? '✕' : '✓';
       if (v === true) litCount++;
       if (wrong) wrongCount++;
@@ -230,36 +278,62 @@
     const n = countTemplates(tree);
     $('score').textContent = n;
     const { wrongCount } = lightCards();
+    $('total').textContent = totalBase + dealBest;
+    const complete = isComplete(tree);
+    const solvedNow = submitted && complete && wrongCount === 0;
+    $('submit').hidden = solvedNow;
+    $('submit').disabled = !complete;
+    $('clear').hidden = solvedNow;
+    const sa = $('showanswer');
+    sa.hidden = solvedNow && !(par !== null && n > par);
+    sa.textContent = solvedNow ? 'Show par' : 'Show answer';
     const st = $('status');
     st.className = '';
-    if (!tree) { st.textContent = 'Drag pieces into the blank to build a description. Lit cards match.'; return; }
-    if (!isComplete(tree)) { st.textContent = 'Fill in every blank. Faded-but-visible cards depend on a blank you haven’t filled.'; return; }
+    if (!tree) { st.textContent = ''; return; }
+    if (!complete) { st.textContent = ''; return; }
+    if (!submitted) { st.textContent = 'Press Submit answer when you’re ready.'; return; }
     if (wrongCount === 0) {
       st.className = 'win';
-      const parTxt = typeof par === 'number' ? (n === par ? ' — perfect, matches par!' : n < par ? ' — beats par?!' : ` (par ${par})`) : '';
-      st.textContent = `Solved with ${n} template${n === 1 ? '' : 's'}${parTxt}. “These animals are ${toText(tree, labels)}.”`;
+      if (par === null) { st.textContent = 'Solved — working out par…'; return; }
+      const pts = pointsFor(n);
+      dealBest = Math.max(dealBest, pts);
+      const parTxt = n === par ? ' — par!' : n < par ? ' — under par!' : ` (par ${par})`;
+      st.textContent = `Solved with ${n} template${n === 1 ? '' : 's'}${parTxt} +${pts} points. “These animals are ${toText(tree, labels)}.”`;
     } else {
-      st.textContent = `${wrongCount} animal${wrongCount === 1 ? ' is' : 's are'} classified wrongly (✕). Missing hand cards or extras are marked.`;
+      st.textContent = `${wrongCount} animal${wrongCount === 1 ? ' is' : 's are'} classified wrongly (✕). Keep editing and submit again.`;
     }
   }
 
   function renderAll() {
-    document.querySelectorAll('.swap').forEach(b => b.disabled = swapped);
+    $('undo').disabled = !undoStack.length;
+    $('redo').disabled = !redoStack.length;
     $('workspace').replaceChildren(nodeEl(tree, [], true));
     updateStatus();
   }
 
+  // ---------- answer panel ----------
+  function showAnswer() {
+    const expr = solved.expr || hiddenExpr;
+    $('answer-text').textContent = expr
+      ? `These animals are ${toText(expr, labels)}.`
+      : 'No short answer found within the search limit.';
+    $('answer-count').textContent = expr ? `${countTemplates(expr)} template${countTemplates(expr) === 1 ? '' : 's'}` : '';
+    $('answer').hidden = false;
+  }
+
   // ---------- init ----------
+  $('showanswer').onclick = showAnswer;
+  $('answer-close').onclick = () => { $('answer').hidden = true; };
+  $('answer-new').onclick = () => { $('answer').hidden = true; newDeal(); };
   buildPalette();
   $('newdeal').onclick = newDeal;
-  $('clear').onclick = () => { tree = null; renderAll(); };
-  const trash = $('trash');
-  trash.addEventListener('dragover', e => { if (drag && drag.path) { e.preventDefault(); trash.classList.add('over'); } });
-  trash.addEventListener('dragleave', () => trash.classList.remove('over'));
-  trash.addEventListener('drop', e => {
-    e.preventDefault(); trash.classList.remove('over');
-    if (drag && drag.path) { tree = set(clone(tree), drag.path, null); renderAll(); }
-    drag = null;
+  $('clear').onclick = () => { if (tree) commit(null); };
+  $('submit').onclick = () => { submitted = true; renderAll(); };
+  $('undo').onclick = undo;
+  $('redo').onclick = redo;
+  document.addEventListener('keydown', e => {
+    if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== 'z') return;
+    e.preventDefault(); e.shiftKey ? redo() : undo();
   });
   newDeal();
 })();
