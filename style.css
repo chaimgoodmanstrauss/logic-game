@@ -1,0 +1,51 @@
+:root {
+  --bg: #f4f1ea; --ink: #26231f; --muted: #7a7469; --card: #fffdf8; --line: #d8d1c2;
+  --lit: #ffd84d; --lit-glow: rgba(255, 200, 0, .55); --bad: #d64545; --good: #2f9e5b;
+  --col: #6d8fd6; --hab: #4fae8c; --leg: #c27ad1; --op: #e08a3c;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #1d1b18; --ink: #f1ece2; --muted: #a39b8c; --card: #2a2723; --line: #46413a; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; padding: 0 16px 40px; background: var(--bg); color: var(--ink); font: 16px/1.4 system-ui, sans-serif; max-width: 1100px; margin-inline: auto; }
+header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+h1 { margin: 16px 0 4px; font-size: 26px; }
+h2 { font-size: 16px; margin: 18px 0 8px; } h2 small { font-weight: 400; color: var(--muted); }
+button { font: inherit; padding: 5px 12px; border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 8px; cursor: pointer; }
+button:hover:not(:disabled) { border-color: var(--ink); } button:disabled { opacity: .4; cursor: default; }
+#scorebar { display: flex; gap: 16px; align-items: center; }
+
+.cards { display: flex; flex-wrap: wrap; gap: 10px; }
+.card { position: relative; background: var(--card); border: 2px solid var(--line); border-radius: 12px; padding: 6px; text-align: center; transition: opacity .15s, box-shadow .15s, border-color .15s, transform .15s; }
+.big .card { width: 150px; } .small .card { width: 104px; font-size: 12px; padding: 4px; }
+.card .pic { aspect-ratio: 1; display: grid; place-items: center; background: color-mix(in srgb, var(--line) 35%, transparent); border-radius: 8px; overflow: hidden; }
+.card .pic img { width: 100%; height: 100%; object-fit: cover; }
+.card .pic .emoji { font-size: 56px; } .small .card .pic .emoji { font-size: 38px; }
+.card .nm { font-weight: 600; margin-top: 4px; }
+.card .tags { color: var(--muted); font-size: 11px; min-height: 2.6em; }
+.card .swap { margin-top: 4px; font-size: 12px; padding: 2px 8px; }
+.card .mark { position: absolute; top: -8px; right: -8px; width: 24px; height: 24px; border-radius: 50%; color: #fff; display: none; place-items: center; font-weight: 700; font-size: 14px; }
+.card.hand { border-color: var(--ink); }
+.card.dim { opacity: .35; filter: grayscale(.8); }
+.card.maybe { opacity: .8; }
+.card.lit { border-color: var(--lit); box-shadow: 0 0 0 3px var(--lit), 0 0 18px 4px var(--lit-glow); transform: translateY(-2px); }
+.card.wrong .mark { display: grid; background: var(--bad); }
+.card.right .mark { display: grid; background: var(--good); }
+
+#sentence { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 18px; padding: 14px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; }
+#workspace { display: contents; }
+.slot { display: inline-block; min-width: 70px; min-height: 34px; line-height: 30px; text-align: center; border: 2px dashed var(--muted); border-radius: 8px; color: var(--muted); padding: 0 8px; }
+.over { outline: 3px solid var(--op); outline-offset: 2px; background: color-mix(in srgb, var(--op) 18%, transparent); }
+.node { display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px; border-radius: 10px; cursor: grab; position: relative; }
+.node.atom { color: #fff; font-weight: 600; padding: 3px 12px; }
+.atom.color { background: var(--col); } .atom.habitat { background: var(--hab); } .atom.legs { background: var(--leg); }
+.node.op { border: 2px solid var(--op); background: color-mix(in srgb, var(--op) 10%, transparent); flex-wrap: wrap; }
+.kw { font-weight: 700; color: var(--op); font-size: 14px; letter-spacing: .03em; }
+.del { border: 0; background: none; padding: 0 2px; color: var(--muted); font-size: 14px; line-height: 1; }
+#status { margin: 8px 2px; min-height: 1.4em; color: var(--muted); }
+#status.win { color: var(--good); font-weight: 700; font-size: 18px; }
+#toolbar { display: flex; gap: 10px; align-items: center; }
+#trash { border: 2px dashed var(--line); border-radius: 8px; padding: 4px 14px; color: var(--muted); font-size: 14px; }
+#palette { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+#palette .node { cursor: grab; }
+#palette .sep { width: 1px; align-self: stretch; background: var(--line); margin: 0 6px; }
