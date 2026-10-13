@@ -1,0 +1,66 @@
+ANIMAL LOGIC - UI LAYOUT
+Edit this file: reorder lines/blocks, delete things, move items between rows, add notes.
+Each "[ ]" is one element. Items on the same line sit side by side, left-aligned.
+Lines starting with # are my notes and are ignored.
+
+============================================================ CURRENT ORDER (top to bottom)
+
+--- 1. HEADER ---
+[ Title: "Animal Logic" ]   [ SCORE badge (big, total points) ]
+
+--- 2. STATUS BAR ---
+[ Templates used: n ]   [ Par: n ]   [ Difficulty: Mix / 1 / 2 / 3 / 4 ]
+
+--- 3. YOUR HAND ---
+[ Heading: "Your hand" + swap hint ]
+[ 5 big animal cards ]        # drop a pool card onto one to swap (once per deal)
+
+--- 4. THE SENTENCE ---
+[ Heading: "Describe exactly these animals" ]
+[ "These animals are" ___ "." ]    # drop pieces into the blanks
+[ Status message ]                  # win/wrong text; blank otherwise
+[ Submit answer ]  [ Undo ]  [ Redo ]  [ Clear ]  [ Show answer ]  [ New deal ]
+                                    # Clear hidden once solved; Show answer -> "Show par" when solved over par, hidden at par
+
+--- 5. PIECES ---
+[ Heading: "Pieces" ]
+[ 10 atoms: black and white, brown, colorful, sea-dwelling, land-dwelling, air-dwelling, legless, two-legged, four-legged, many-legged ]  |  [ AND ] [ OR ] [ IF..THEN ] [ NOT ]
+
+--- 6. THE REST OF THE POOL ---
+[ Heading: "The rest of the pool" ]
+[ 17 small animal cards ]
+
+--- POPUP (appears over everything when "Show answer" is clicked) ---
+[ Answer text ]  [ template count ]  [ New deal ]  [ Close ]
+
+
+============================================================ YOUR VERSION (edit below; I'll implement exactly this)
+
+--- 1. HEADER ---
+[ Title: "Animal Logic" ]   [ SCORE badge (big, total points) ]
+
+--- 2. STATUS BAR ---
+[ Templates used: n ]   [ Par: n ]   [ Difficulty: Mix / 1 / 2 / 3 / 4 ]
+
+--- 3. YOUR HAND ---
+[ Heading: "Your hand" + swap hint ]
+[ 5 big animal cards ]        # drop a pool card onto one to swap (once per deal)
+
+--- 4. THE SENTENCE ---
+[ Heading: "Describe exactly these animals" ]
+[ "These animals are" ___ "." ]    # drop pieces into the blanks
+[ Status message ]                  # win/wrong text; blank otherwise
+[ Submit answer ]  [ Undo ]  [ Redo ]  [ Clear ]  [ Show answer ]  [ New deal ]
+                                    # Clear hidden once solved; Show answer -> "Show par" when solved over par, hidden at par
+
+--- 5. PIECES ---
+[ Heading: "Pieces" ]
+[ 10 atoms: black and white, brown, colorful, sea-dwelling, land-dwelling, air-dwelling, legless, two-legged, four-legged, many-legged ]  |  [ AND ] [ OR ] [ IF..THEN ] [ NOT ]
+
+--- 6. THE REST OF THE POOL ---
+[ Heading: "The rest of the pool" ]
+[ 17 small animal cards ]
+
+
+--- POPUP ---
+[ Answer text ]  [ template count ]  [ New deal ]  [ Close ]

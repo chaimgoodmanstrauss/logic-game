@@ -67,5 +67,5 @@ button[hidden] { display: none; }
 button.primary { padding: 6px 18px; font-size: 16px; font-weight: 700; background: var(--ink); color: var(--bg); border-color: var(--ink); border-radius: 12px; }
 button.primary:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 3px 10px rgba(0,0,0,.25); }
 
-#difflabel { font-size: 20px; font-weight: 600; }
-#difflabel select { font: inherit; padding: 4px 10px; margin-left: 6px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--ink); }
+#sizelabel, #difflabel { font-size: 20px; font-weight: 600; }
+#sizelabel select, #difflabel select { font: inherit; padding: 4px 10px; margin-left: 6px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--ink); }

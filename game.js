@@ -1,7 +1,7 @@
 (() => {
   const { evalNode, countTemplates, isComplete, toText, solvePar, randomExpr } = Logic;
   const $ = id => document.getElementById(id);
-  const HAND_SIZE = 5;
+  const HAND_SIZES = [4, 5, 6];
 
   const atomTests = Object.fromEntries(ATOMS.map(a => [a.key, a.test]));
   const atomByKey = Object.fromEntries(ATOMS.map(a => [a.key, a]));
@@ -46,22 +46,23 @@
   function saveSeen(s) { try { localStorage.setItem(SEEN_KEY, JSON.stringify(s)); } catch {} }
 
   // Work backwards: generate a random expression with `difficulty` atoms until it is true of exactly 5 animals.
-  function dealHand(difficulty) {
+  function dealHand(difficulty, size) {
+    const seenKey = `${difficulty}-${size}`;
     const keys = ATOMS.map(a => a.key);
     const seen = loadSeen();
     for (let pass = 0; pass < 2; pass++) {
-      const used = new Set(seen[difficulty] || []);
+      const used = new Set(seen[seenKey] || []);
       for (let tries = 0; tries < 20000; tries++) {
-        const e = randomExpr(difficulty, keys);
+        const e = randomExpr(difficulty, keys, difficulty >= 3);
         const matches = ANIMALS.map((_, i) => i).filter(i => evalNode(e, ANIMALS[i], atomTests) === true);
-        if (matches.length !== HAND_SIZE) continue;
+        if (matches.length !== size) continue;
         const m = maskOf(matches);
         if (used.has(m) || (hand.length && m === maskOf(hand))) continue;
-        seen[difficulty] = [...used, m];
+        seen[seenKey] = [...used, m];
         saveSeen(seen);
         return { cards: shuffle(matches), expr: e };
       }
-      seen[difficulty] = []; // every hand at this level has been played: start over
+      seen[seenKey] = []; // every hand at this level has been played: start over
     }
     return null;
   }
@@ -69,7 +70,8 @@
   function newDeal() {
     totalBase += dealBest; dealBest = 0;
     const level = $('difficulty').value;
-    const deal = dealHand(level === 'mix' ? 1 + Math.floor(Math.random() * 4) : +level);
+    const size = HAND_SIZES[Math.floor(Math.random() * HAND_SIZES.length)];
+    const deal = dealHand(level === 'mix' ? 1 + Math.floor(Math.random() * 4) : +level, size);
     if (!deal) return;
     hand = deal.cards;
     hiddenExpr = deal.expr;
@@ -125,7 +127,7 @@
   // ---------- cards ----------
   function tagsOf(a) {
     const col = { bw: 'black & white', brown: 'brown', colorful: 'colorful' }[a.color];
-    const legs = a.legs === 0 ? 'no legs' : a.legs === 'many' ? 'many legs' : `${a.legs} legs`;
+    const legs = a.legs === 0 ? 'no\u00a0legs' : a.legs === 'many' ? 'many\u00a0legs' : `${a.legs}\u00a0legs`;
     return `${col} · ${a.habitats.join('/')} · ${legs}`;
   }
 

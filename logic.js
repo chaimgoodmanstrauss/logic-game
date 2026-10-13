@@ -90,8 +90,8 @@
     }
   }
 
-  // Random complete expression using exactly k distinct atoms (k-1 binary templates, plus an optional NOT).
-  function randomExpr(k, keys) {
+  // Random complete expression using exactly k distinct atoms (k-1 binary templates, plus an optional NOT). `easy`: mostly AND/OR, no NOT.
+  function randomExpr(k, keys, easy = false) {
     const pool = keys.slice();
     for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
     const build = n => {
@@ -99,10 +99,11 @@
       if (n === 1) node = { type: 'atom', key: pool.pop() };
       else {
         const left = 1 + Math.floor(Math.random() * (n - 1));
-        const op = ['and', 'or', 'if'][Math.floor(Math.random() * 3)];
+        const r = Math.random();
+        const op = easy ? (r < 0.15 ? 'if' : r < 0.575 ? 'and' : 'or') : ['and', 'or', 'if'][Math.floor(r * 3)];
         node = { type: 'op', op, args: [build(left), build(n - left)] };
       }
-      return Math.random() < 0.2 ? { type: 'op', op: 'not', args: [node] } : node;
+      return !easy && Math.random() < 0.2 ? { type: 'op', op: 'not', args: [node] } : node;
     };
     return build(k);
   }
